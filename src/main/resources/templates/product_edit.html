@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상품 수정</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #333;
+        }
+        form {
+            background-color: white;
+            padding: 20px;
+            width: 50%;
+            margin: 0 auto;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        input, button, select, textarea {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        label {
+            font-weight: bold;
+            text-align: left;
+            display: block;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .option-container {
+            background-color: white;
+            padding: 20px;
+            width: 50%;
+            margin: 20px auto;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .option-item {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .option-values { display: none; }
+    </style>
+</head>
+<body>
+<h2>상품 수정</h2>
+<form id="edit-form">
+    <input type="hidden" id="productId">
+    <label for="name">상품명</label>
+    <input type="text" id="name" placeholder="상품명" required>
+
+    <label for="description">상품 설명</label>
+    <input type="text" id="description" placeholder="상품 설명" required>
+
+    <label for="price">가격</label>
+    <input type="number" id="price" placeholder="가격" required>
+
+    <label for="shippingFee">배송비</label>
+    <input type="number" id="shippingFee" placeholder="배송비" required>
+
+    <button type="submit">수정 완료</button>
+</form>
+
+<h2>옵션 관리</h2>
+<div class="option-container" id="option-list"></div>
+<button id="add-option" onclick="addOption()">옵션 추가</button>
+
+<script>
+    document.getElementById("edit-form").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        const updatedProduct = {
+            name: document.getElementById("name").value,
+            description: document.getElementById("description").value,
+            price: parseFloat(document.getElementById("price").value),
+            shippingFee: parseFloat(document.getElementById("shippingFee").value)
+        };
+
+        fetch(`/api/products/${productId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(updatedProduct)
+        })
+        .then(response => {
+            if (response.ok) {
+                alert("상품이 수정되었습니다.");
+                window.location.href = "/products";
+            } else {
+                alert("상품 수정에 실패했습니다.");
+            }
+        })
+        .catch(error => console.error("상품 수정 중 오류 발생", error));
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = urlParams.get("id");
+    document.getElementById("productId").value = productId;
+
+    fetch(`/api/products/${productId}`)
+    .then(response => response.json())
+    .then(product => {
+        document.getElementById("name").value = product.name;
+        document.getElementById("description").value = product.description;
+        document.getElementById("price").value = product.price;
+        document.getElementById("shippingFee").value = product.shippingFee;
+    })
+    .catch(error => console.error("상품 정보를 불러오는 데 실패했습니다.", error));
+
+    function toggleOptionValues(selectElement) {
+        const valuesInput = selectElement.parentElement.querySelector(".option-values");
+        if (selectElement.value === "SELECT") {
+            valuesInput.style.display = "block";
+            valuesInput.disabled = false;
+        } else {
+            valuesInput.style.display = "none";
+            valuesInput.disabled = true;
+        }
+    }
+    function updateOption(optionId, button) {
+        const div = button.parentElement;
+        const name = div.querySelector(".option-name").value;
+        const type = div.querySelector(".option-type").value;
+        const values = type === "SELECT" ? div.querySelector(".option-values").value.split(",") : [];
+        const extraPrice = parseInt(div.querySelector(".option-extra-price").value, 10);
+
+        const optionData = {
+            name,
+            type,
+            values,
+            extraPrice,
+            productId
+        };
+
+        fetch(`/api/options/${optionId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(optionData)
+        })
+        .then(response => {
+            if (response.ok) {
+                alert("옵션이 수정되었습니다!");
+                loadOptions(); // ✅ 옵션 목록 새로고침
+            } else {
+                alert("옵션 수정에 실패했습니다.");
+            }
+        })
+        .catch(error => console.error("옵션 수정 실패", error));
+    }
+    function submitOption(button) {
+    const div = button.parentElement;
+    const name = div.querySelector(".option-name").value;
+    const type = div.querySelector(".option-type").value;
+    const values = type === "SELECT" ? div.querySelector(".option-values").value.split(",") : [];
+    const extraPrice = parseInt(div.querySelector(".option-extra-price").value);
+
+    const optionData = {
+        name,
+        type,
+        values,
+        extraPrice,
+        productId
+    };
+
+    fetch("/api/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(optionData)
+    })
+    .then(response => {
+        if (response.ok) {
+            alert("옵션이 추가되었습니다!");
+            loadOptions(); // 옵션 목록 새로고침
+        } else {
+            alert("옵션 추가에 실패했습니다.");
+        }
+    })
+    .catch(error => console.error("옵션 추가 실패", error));
+}
+
+    function loadOptions() {
+    fetch(`/api/options/${productId}`)
+    .then(response => response.json())
+    .then(options => {
+        const optionList = document.getElementById("option-list");
+        optionList.innerHTML = "";
+        options.forEach(option => {
+            const div = document.createElement("div");
+            div.className = "option-item";
+            div.innerHTML = `
+                <label>옵션명</label>
+                <input type="text" class="option-name" value="${option.name}" required>
+
+                <label>옵션 타입</label>
+                <select class="option-type" onchange="toggleOptionValues(this)">
+                    <option value="INPUT" ${option.type === 'INPUT' ? 'selected' : ''}>입력</option>
+                    <option value="SELECT" ${option.type === 'SELECT' ? 'selected' : ''}>선택</option>
+                </select>
+
+                <label>옵션 값 목록 (쉼표로 구분)</label>
+                <input type="text" class="option-values" value="${option.values ? option.values.join(', ') : ''}" ${option.type === 'SELECT' ? '' : 'disabled'}>
+
+                <label>추가 금액</label>
+                <input type="number" class="option-extra-price" value="${option.extraPrice}" required>
+
+                ${option.type === 'SELECT' ? `<p>선택 가능 값: ${option.values.join(', ')}</p>` : ''}
+
+                <button onclick="updateOption(${option.id}, this)">수정</button>
+                <button onclick="deleteOption(${option.id})">삭제</button>
+            `;
+            optionList.appendChild(div);
+        });
+    })
+    .catch(error => console.error("옵션 불러오기 실패", error));
+}
+    loadOptions();
+
+    function addOption() {
+        const optionContainer = document.getElementById("option-list");
+        const div = document.createElement("div");
+        div.className = "option-item";
+        div.innerHTML = `
+            <label>옵션명</label>
+            <input type="text" class="option-name" required>
+
+            <label>옵션 타입</label>
+            <select class="option-type" onchange="toggleOptionValues(this)">
+                <option value="INPUT">입력</option>
+                <option value="SELECT">선택</option>
+            </select>
+
+            <label>옵션 값 목록 (쉼표로 구분)</label>
+            <input type="text" class="option-values" disabled>
+
+            <label>추가 금액</label>
+            <input type="number" class="option-extra-price" required>
+
+            <button onclick="submitOption(this)">등록</button>
+        `;
+        optionContainer.appendChild(div);
+    }
+</script>
+</body>
+</html>
