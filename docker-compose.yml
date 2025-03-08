@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      # 스프링부트가 환경변수로 설정을 오버라이드 하도록 함 (application.properties보다 우선순위가 높음)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mydb
+      - SPRING_DATASOURCE_USERNAME=myuser
+      - SPRING_DATASOURCE_PASSWORD=mypassword
+      # JWT 관련 환경 변수 (필요 시 스프링에서 @Value 등을 통해 주입)
+      - JWT_SECRET=Py8dN0u8q8MpHRpYJM4Y5zOnkHJMBVSwaNPeO3IcyJg=
+      - JWT_EXPIRATION=86400000
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      - POSTGRES_DB=mydb
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
